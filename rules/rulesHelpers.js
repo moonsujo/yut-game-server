@@ -105,7 +105,7 @@ export function getOccupiedTiles({ pieces }) {
   return tiles
 }
 
-export function movePieces({friendlyPieces, enemies, movingPieces, to, path, history}) {
+export function movePieces({friendlyPieces, enemies, movingPieces, to, path, history, move, yutMoCatch}) {
   
   let newFriendlyPieces = JSON.parse(JSON.stringify(friendlyPieces))
   let newEnemies = JSON.parse(JSON.stringify(enemies))
@@ -119,10 +119,15 @@ export function movePieces({friendlyPieces, enemies, movingPieces, to, path, his
 
   // If catch, update enemy pieces
   let caught = false
+  let caughtNoBonus = false
   let enemyTiles = getOccupiedTiles({ pieces: enemies })
 
   if (enemyTiles[to] && enemyTiles[to].length > 0) {
-    caught = true
+    if (yutMoCatch) {
+      caught = true
+    } else if (parseInt(move) === 4 || parseInt(move) === 5) {
+      caughtNoBonus = true
+    }
     let occupyingTeam = enemyTiles[to][0].team
     let movingTeam = friendlyPieces[0].team
     if (occupyingTeam != movingTeam) {
@@ -137,7 +142,7 @@ export function movePieces({friendlyPieces, enemies, movingPieces, to, path, his
     }
   }
 
-  return [newFriendlyPieces, newEnemies, caught]
+  return [newFriendlyPieces, newEnemies, caught, caughtNoBonus]
 }
 
 

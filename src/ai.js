@@ -3,7 +3,7 @@ import { getLegalTiles } from '../rules/legalTiles.js'
 
 // return: { sequence, score }
 // sequence: [{ token id, move }]
-export function pickBestMoveSequence({ moves, friendlyPieces, enemies, bestMoveSequence, backdoLaunch, numTokens, throwsEarned, shortcutOptions }) {
+export function pickBestMoveSequence({ moves, friendlyPieces, enemies, bestMoveSequence, backdoLaunch, numTokens, throwsEarned, numCaught, yutMoCatch, shortcutOptions }) {
 
   // base case
   if (isEmptyMoves(moves) || winCheck(friendlyPieces)) {
@@ -15,7 +15,7 @@ export function pickBestMoveSequence({ moves, friendlyPieces, enemies, bestMoveS
       enemyPieces: enemies, 
       backdoLaunch,
       throwsEarned,
-      shortcutOptions
+      numCaught
     })
 
     return { sequence: bestMoveSequence.sequence, score }
@@ -85,7 +85,10 @@ export function pickBestMoveSequence({ moves, friendlyPieces, enemies, bestMoveS
                 bestMoveSequence: nextBestMoveSequence, 
                 backdoLaunch, 
                 numTokens,
-                throwsEarned
+                throwsEarned,
+                numCaught,
+                yutMoCatch,
+                shortcutOptions
               })
               if (candidate.score < nextBestScore) {
                 nextBestScore = candidate.score
@@ -94,13 +97,15 @@ export function pickBestMoveSequence({ moves, friendlyPieces, enemies, bestMoveS
             }
           } else {
             moveInfo = legalTiles[legalTile]
-            const [newFriendlyPieces, newEnemyPieces, caught] = movePieces({ 
+            const [newFriendlyPieces, newEnemyPieces, caught, caughtNoBonus] = movePieces({ 
               friendlyPieces,
               enemies,
               movingPieces: selectedPieces,
               to: parseInt(legalTile),
               path: moveInfo.path,
               history: moveInfo.history,
+              move: moveInfo.move,
+              yutMoCatch
             })
             let newMoves = JSON.parse(JSON.stringify(moves))
             newMoves[moveInfo.move]--
@@ -116,7 +121,10 @@ export function pickBestMoveSequence({ moves, friendlyPieces, enemies, bestMoveS
               bestMoveSequence: nextBestMoveSequence, 
               backdoLaunch, 
               numTokens,
-              throwsEarned: throwsEarned + (caught ? 1 : 0)
+              throwsEarned: throwsEarned + (caught ? 1 : 0),
+              numCaught: numCaught + (caught ? 1 : 0) + (caughtNoBonus ? 1 : 0),
+              yutMoCatch,
+              shortcutOptions
             })
             if (candidate.score < nextBestScore) {
               nextBestScore = candidate.score
@@ -143,6 +151,8 @@ export function calculateSmartMoveSequence({ room, team }) {
     backdoLaunch: room.rules.backdoLaunch,
     numTokens: room.rules.numTokens,
     throwsEarned: 0,
+    numCaught: 0,
+    yutMoCatch: room.rules.yutMoCatch,
     shortcutOptions: room.rules.shortcutOptions
   }).sequence
 
@@ -151,7 +161,7 @@ export function calculateSmartMoveSequence({ room, team }) {
 
 // should favor getting closer than advancing the one in front
 // add additional points for number of throws
-export function calculateScore({ pieces, enemyPieces, backdoLaunch, throwsEarned, shortcutOptions }) {
+export function calculateScore({ pieces, enemyPieces, backdoLaunch, throwsEarned, numCaught }) {
   // get long distance from piece's tile to finish
   let score;
   // depth first search
@@ -258,34 +268,32 @@ export function calculateScore({ pieces, enemyPieces, backdoLaunch, throwsEarned
 
   // measure 2: enemies behind you within catch range
   let enemyProximityScore = 0
-  if (throwsEarned === 0) {
-    for (let enemyTile of Object.keys(enemyTiles)) {
-      enemyTile = parseInt(enemyTile)
-      let history
-      if (tileType(enemyTile) === 'home') {
-        history = []
-      } else {
-        history = enemyTiles[enemyTile][0].history
-      }
-      // count piggyback pieces only once
-      // technically, pieces at home are piggybacked
-      for (const move of Object.keys(moveSets)) {
-        if (move !== '-1') { // don't count backdo to anticipate future move
-          const legalTiles = getLegalTiles(enemyTile, moveSets[move], enemyPieces, history, backdoLaunch)
-          // check how many friendlies are on it
-          // multiply score by that number
-          if (Object.keys(legalTiles).length > 0) {
-            let numMostTokens = 0
-            for (const legalTile of Object.keys(legalTiles)) {
-              if (legalTile !== 29) {
-                // if you're on a shortcut, count the legal tile with the most pieces to catch
-                if (friendlyTiles[legalTile] && friendlyTiles[legalTile].length > numMostTokens) {
-                  numMostTokens = friendlyTiles[legalTile].length
-                }
+  for (let enemyTile of Object.keys(enemyTiles)) {
+    enemyTile = parseInt(enemyTile)
+    let history
+    if (tileType(enemyTile) === 'home') {
+      history = []
+    } else {
+      history = enemyTiles[enemyTile][0].history
+    }
+    // count piggyback pieces only once
+    // technically, pieces at home are piggybacked
+    for (const move of Object.keys(moveSets)) {
+      if (move !== '-1') { // don't count backdo to anticipate future move
+        const legalTiles = getLegalTiles(enemyTile, moveSets[move], enemyPieces, history, backdoLaunch)
+        // check how many friendlies are on it
+        // multiply score by that number
+        if (Object.keys(legalTiles).length > 0) {
+          let numMostTokens = 0
+          for (const legalTile of Object.keys(legalTiles)) {
+            if (legalTile !== 29) {
+              // if you're on a shortcut, count the legal tile with the most pieces to catch
+              if (friendlyTiles[legalTile] && friendlyTiles[legalTile].length > numMostTokens) {
+                numMostTokens = friendlyTiles[legalTile].length
               }
             }
-            enemyProximityScore += (proximityScore[move] * numMostTokens)
           }
+          enemyProximityScore += (proximityScore[move] * numMostTokens)
         }
       }
     }
@@ -348,7 +356,13 @@ export function calculateScore({ pieces, enemyPieces, backdoLaunch, throwsEarned
   }
 
   // measure 5: throws earned during the sequence
-  let throwsEarnedScore = throwsEarned * 10
+  // divided throwsEarned into caught and caughtNoBonus.
+  // if yutMoCatch is 'off', you won't earn a throw when catching with Yut or Mo.
+  // case 1: catch with regular throw. throwsEarned = 1 and caught = 1
+  // case 2: catch with bonus throw, rule is 'off'. throwsEarned = 0 and caught = 1
+  // case 3: catch with bonus throw, rule is 'on'. throwsEarned = 1 and caught = 1
+  let throwsEarnedScore = throwsEarned * 5
+  let caughtScore = numCaught * 5
 
   // heuristic 1: prioritize catch if all remaining enemies are on the board
   // get the shortest distance between enemy and friendly
@@ -435,7 +449,7 @@ export function calculateScore({ pieces, enemyPieces, backdoLaunch, throwsEarned
   // } else {
   //   score = friendlyDistanceScore - enemyDistanceScore + enemyProximityScore - piggybackScore - enemyCatchScore - throwsEarnedScore
   // }
-  score = friendlyDistanceScore - enemyDistanceScore + enemyProximityScore - piggybackScore - enemyCatchScore - throwsEarnedScore
+  score = friendlyDistanceScore - enemyDistanceScore + enemyProximityScore - piggybackScore - enemyCatchScore - throwsEarnedScore - caughtScore
   console.log('final score', score)
   return score
 }
