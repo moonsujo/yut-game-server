@@ -2219,7 +2219,7 @@ io.on("connect", async (socket) => {
 
       let room = await Room.findOne({ shortId: user.roomId })
       // Spectator
-      if (user.team === -1 && user._id.valueOf() !== host._id.valueOf()) {
+      if (user.team === -1 && user._id.valueOf() !== room.host._id.valueOf()) {
         let { deletedCount } = await User.deleteOne({ 'socketId': socket.id })
         if (deletedCount < 1) {
           throw new Error(`user with socket id ${socket.id} wasn't deleted`)
