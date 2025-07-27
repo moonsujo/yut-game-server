@@ -953,13 +953,13 @@ io.on("connect", async (socket) => {
       } else {
         newTurn = await getHostTurn(room)
       }
-      // room.turn = newTurn
-      // room.teams[newTurn.team].throws = 1
-      // room.gamePhase = "pregame"
+      room.turn = newTurn
+      room.teams[newTurn.team].throws = 1
+      room.gamePhase = "pregame"
       // testing
-      room.gamePhase = "game" 
-      room.turn.team = 0
-      room.teams[room.turn.team].throws = 1
+      // room.gamePhase = "game" 
+      // room.turn.team = 0
+      // room.teams[room.turn.team].throws = 1
       
       // Game logs
       let gameLog = {
@@ -1128,7 +1128,7 @@ io.on("connect", async (socket) => {
         clearTimeout(room.timerId)
         room.turnExpireTime = null
         room.turnsSkipped = 0
-        // let outcome = pickOutcome({ nakEnabled: room.rules.nak })
+        let outcome = pickOutcome({ nakEnabled: room.rules.nak })
         if (room.kea4 && user.name === 'KEA') {
           outcome = 4
           room.kea4 = false
@@ -1141,7 +1141,7 @@ io.on("connect", async (socket) => {
         // } else if (room.teams[room.turn.team].throws === 1) {
         //   outcome = -1
         // }
-        let outcome = 2
+        // let outcome = 2
         // let outcome
         // if (room.gamePhase === 'pregame') {
         //   if (room.turn.team === 0) {
