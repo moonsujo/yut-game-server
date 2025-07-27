@@ -310,7 +310,8 @@ Room.watch([], { fullDocument: 'updateLookup' }).on('change', async (data) => {
               turnStartTime: room.turnStartTime,
               turnExpireTime: room.turnExpireTime,
               newGameLog: serverEvent.content.gameLog,
-              timer: room.rules.timer
+              timer: room.rules.timer,
+              hasAI: serverEvent.content.hasAI
             })
             // separating it into two events lags the client
           } else if (serverEvent.name === 'passTurn') {
@@ -440,7 +441,9 @@ Room.watch([], { fullDocument: 'updateLookup' }).on('change', async (data) => {
               team: serverEvent.content.team,
               name: serverEvent.content.name,
               turn: room.turn,
-              paused: room.paused
+              paused: room.paused,
+              gamePhase: room.gamePhase,
+              hasAI: serverEvent.content.hasAI
             })
           } else if (serverEvent.name === "pause") {
             io.to(userSocketId).emit("pause", { 
@@ -978,6 +981,9 @@ io.on("connect", async (socket) => {
 
       if (await roomHasAI(room)) {
         room.rules.timer = false
+        room.serverEvent.content.hasAI = true
+      } else {
+        room.serverEvent.content.hasAI = false
       }
 
       // Timer
@@ -2408,16 +2414,24 @@ io.on("connect", async (socket) => {
       if (!room) {
         throw new Error('room with shortId', roomId, 'and hostId', hostId, 'not found')
       }
+      
+      room.serverEvent = {
+        'name': 'kick',
+        'content': {
+          team,
+          name,
+        }
+      }
 
       const user = await User.findOneAndDelete({ name, roomId })
       if (!user) {
         throw new Error(`user with name ${name} in room ${roomId} not found`)
       }
+      room.serverEvent.content.socketId = user.socketId
 
       io.to(user.socketId).emit("kicked");
   
       // Remove the user from the room
-      
       if (team === -1) {
         let spectatorIndex = room.spectators.findIndex((spectator) => {
           return spectator._id.valueOf() === user._id.valueOf()
@@ -2437,14 +2451,11 @@ io.on("connect", async (socket) => {
           room.teams[team].players.splice(playerIndex, 1)
         }
       }
-      
-      room.serverEvent = {
-        'name': 'kick',
-        'content': {
-          team,
-          name,
-          socketId: user.socketId
-        }
+
+      if (await roomHasAI(room)) {
+        room.serverEvent.content.hasAI = true
+      } else {
+        room.serverEvent.content.hasAI = false
       }
 
       // If player had turn, find the next player on the team
