@@ -3,7 +3,7 @@ import { getLegalTiles } from '../rules/legalTiles.js'
 
 // return: { sequence, score }
 // sequence: [{ token id, move }]
-export function pickBestMoveSequence({ moves, friendlyPieces, enemies, bestMoveSequence, backdoLaunch, numTokens, throwsEarned, numCaught, yutMoCatch, shortcutOptions }) {
+export function pickBestMoveSequence({ moves, friendlyPieces, enemies, bestMoveSequence, numTokens, throwsEarned, numCaught, backdoLaunch, yutMoCatch, shortcutOptions }) {
 
   // base case
   if (isEmptyMoves(moves) || winCheck(friendlyPieces)) {
@@ -15,7 +15,8 @@ export function pickBestMoveSequence({ moves, friendlyPieces, enemies, bestMoveS
       enemyPieces: enemies, 
       backdoLaunch,
       throwsEarned,
-      numCaught
+      numCaught,
+      shortcutOptions
     })
 
     return { sequence: bestMoveSequence.sequence, score }
@@ -44,7 +45,7 @@ export function pickBestMoveSequence({ moves, friendlyPieces, enemies, bestMoveS
         history = selectedPiece.history // go back the way you came from of the first token
         selectedPieces = occupiedTiles[tile];
       }
-      let legalTiles = getLegalTiles(tile, moves, friendlyPieces, history, backdoLaunch)
+      let legalTiles = getLegalTiles(tile, moves, friendlyPieces, history, backdoLaunch, shortcutOptions)
 
       // appends move for every token
       // should pick one of them
@@ -161,7 +162,7 @@ export function calculateSmartMoveSequence({ room, team }) {
 
 // should favor getting closer than advancing the one in front
 // add additional points for number of throws
-export function calculateScore({ pieces, enemyPieces, backdoLaunch, throwsEarned, numCaught }) {
+export function calculateScore({ pieces, enemyPieces, backdoLaunch, throwsEarned, numCaught, shortcutOptions }) {
   // get long distance from piece's tile to finish
   let score;
   // depth first search
@@ -280,7 +281,7 @@ export function calculateScore({ pieces, enemyPieces, backdoLaunch, throwsEarned
     // technically, pieces at home are piggybacked
     for (const move of Object.keys(moveSets)) {
       if (move !== '-1') { // don't count backdo to anticipate future move
-        const legalTiles = getLegalTiles(enemyTile, moveSets[move], enemyPieces, history, backdoLaunch)
+        const legalTiles = getLegalTiles(enemyTile, moveSets[move], enemyPieces, history, backdoLaunch, shortcutOptions)
         // check how many friendlies are on it
         // multiply score by that number
         if (Object.keys(legalTiles).length > 0) {
@@ -318,7 +319,7 @@ export function calculateScore({ pieces, enemyPieces, backdoLaunch, throwsEarned
     // technically, pieces at home are piggybacked
     for (const move of Object.keys(moveSets)) {
       if (parseInt(move) !== 0 && move !== -1) { // don't count backdo to anticipate future move
-        const legalTiles = getLegalTiles(friendlyTile, moveSets[move], pieces, history, backdoLaunch)
+        const legalTiles = getLegalTiles(friendlyTile, moveSets[move], pieces, history, backdoLaunch, shortcutOptions)
         // console.log('move', move, 'legalTiles', legalTiles)
         // check how many enemies are on it
         // multiply score by that number
@@ -481,6 +482,7 @@ export function calculateLongestPathHome(tile, longestDistance) {
   longestDistance+=1
 
   const nextTiles = checkFinishRule(getNextTiles(tile, true, true)) // shortcutOptions enabled to calculate the longest path
+
   // caller (startCalculateLongestPathHome) accounts for starting from shortcut
   
   // base case
@@ -508,7 +510,7 @@ export function calculateLongestPathDestination(start, longestDistance, end) {
   
   longestDistance+=1
 
-  const nextTiles = checkFinishRule(getNextTiles(start, true, shortcutOptions))
+  const nextTiles = checkFinishRule(getNextTiles(start, true, true))
   
   // base case
   if (nextTiles[0] === 29) {

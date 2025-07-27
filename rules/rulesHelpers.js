@@ -46,6 +46,23 @@ export function getNextTiles(tile, forward, shortcutOptions) {
   // on board
   let [start, end] = getStartAndEndVertices(forward);
   for (const edge of edgeList) {
+    if (edge[start] === tile) {
+      nextTiles.push(edge[end]);
+    }
+  }
+
+  return nextTiles
+}
+
+export function getForks(tile, forward, shortcutOptions) {
+  let nextTiles = [];
+  if (tile === -1 && forward) {
+    return [1]
+  }
+
+  // on board
+  let [start, end] = getStartAndEndVertices(forward);
+  for (const edge of edgeList) {
     if (shortcutOptions && edge[start] === tile) {
       nextTiles.push(edge[end]);
     } else if (tile === 5) { // you can only go on the short path.

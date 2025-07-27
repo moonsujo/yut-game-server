@@ -1,5 +1,5 @@
 import edgeList from "./edgeList.js";
-import { checkFinishRule, getNextTiles, getStartAndEndVertices, tileType } from "./rulesHelpers.js";
+import { checkFinishRule, getForks, getNextTiles, getStartAndEndVertices, tileType } from "./rulesHelpers.js";
 
 // schema
 // legalTiles: {
@@ -30,7 +30,7 @@ export function getLegalTiles(tile, moves, pieces, history, backdoLaunch, shortc
           } else {
     
             let forward = parseInt(move) > 0 ? true: false
-            let forks = getNextTiles(tile, forward, shortcutOptions)
+            let forks = getForks(tile, forward, shortcutOptions)
             if (forward) {
               // If you're on Earth, there's a path to score and path to tile 1. Eliminate the path to tile 1
               forks = checkFinishRule(forks) 
